@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  base: "/37ndest/",
   plugins: [
     react(),
     VitePWA({
@@ -17,7 +18,7 @@ export default defineConfig({
         short_name: "37NDEST",
         description:
           "A focused Japanese conversation trainer for two users preparing for a mission trip.",
-        start_url: "/",
+        start_url: "/37ndest/",
         display: "standalone",
         background_color: "#0b1020",
         theme_color: "#0b1020",
