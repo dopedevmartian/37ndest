@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eve-llc.local/schemas/japanese-mission-deck.schema.json",
+  "title": "Japanese Mission Deck Canonical Format",
+  "type": "object",
+  "required": [
+    "deck_name",
+    "source_package",
+    "canonical_format_version",
+    "notes_total",
+    "source_notes_total",
+    "design_decisions",
+    "notes"
+  ],
+  "properties": {
+    "deck_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_package": {
+      "type": "string",
+      "minLength": 1
+    },
+    "canonical_format_version": {
+      "type": "string",
+      "pattern": "^v?[0-9]+(\\.[0-9]+)*$"
+    },
+    "notes_total": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source_notes_total": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "design_decisions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "notes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/note"
+      }
+    }
+  },
+  "$defs": {
+    "note": {
+      "type": "object",
+      "required": [
+        "id",
+        "deck_name",
+        "category",
+        "subcategory",
+        "domain_priority",
+        "suggested_start_week",
+        "kind",
+        "study_role",
+        "english",
+        "issues",
+        "fixes_applied",
+        "core_featured",
+        "duplicate_merged_from_source_orders",
+        "recommended_directions",
+        "study_tier",
+        "japanese",
+        "romaji",
+        "status",
+        "phase_order",
+        "app_active_default",
+        "difficulty_bias"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^MJD-[0-9]{3,}$"
+        },
+        "source_order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_note_id": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "deck_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "foundation",
+            "relationship",
+            "navigation_survival",
+            "ministry"
+          ]
+        },
+        "subcategory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "domain_priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "suggested_start_week": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "phrase",
+            "vocab",
+            "grammar_support",
+            "core_phrase",
+            "core_sentence"
+          ]
+        },
+        "study_role": {
+          "type": "string",
+          "enum": [
+            "primary",
+            "support"
+          ]
+        },
+        "english": {
+          "type": "string",
+          "minLength": 1
+        },
+        "usage_note": {
+          "type": "string"
+        },
+        "example_japanese": {
+          "type": "string"
+        },
+        "literal_breakdown": {
+          "type": "string"
+        },
+        "example_english": {
+          "type": "string"
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "fixes_applied": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "source_front_text": {
+          "type": "string"
+        },
+        "source_back_text": {
+          "type": "string"
+        },
+        "core_featured": {
+          "type": "boolean"
+        },
+        "duplicate_merged_from_source_orders": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "default": []
+        },
+        "recommended_directions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "jp_to_en",
+              "en_to_jp",
+              "shadowing",
+              "fill_blank",
+              "scenario_prompt"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "study_tier": {
+          "type": "string",
+          "enum": [
+            "must_now",
+            "soon",
+            "support",
+            "later"
+          ]
+        },
+        "japanese": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kana": {
+          "type": "string"
+        },
+        "furigana": {
+          "type": "string"
+        },
+        "romaji": {
+          "type": "string",
+          "minLength": 1
+        },
+        "audio": {
+          "type": "object",
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "missing",
+                "tts_pending",
+                "recorded",
+                "verified"
+              ]
+            },
+            "source": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "voice": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "keep",
+            "merged",
+            "deprecated",
+            "rewrite"
+          ]
+        },
+        "phase_order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "app_active_default": {
+          "type": "boolean"
+        },
+        "difficulty_bias": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 3.0
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

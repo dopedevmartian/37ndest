@@ -1,0 +1,181 @@
+{
+  "plan_name": "Japanese Mission 14-Week Plan",
+  "profiles": [
+    "intensive",
+    "standard"
+  ],
+  "defaults": {
+    "min_new_per_day": 4,
+    "normal_new_per_day_range": [
+      6,
+      12
+    ],
+    "max_new_per_day": 18,
+    "review_warning_thresholds": {
+      "intensive": 180,
+      "standard": 120
+    }
+  },
+  "adaptive_formula": {
+    "base": "ceil(remaining_active_new / remaining_study_days)",
+    "adjustments": [
+      {
+        "if": "backlog_due > 120",
+        "then": "target = max(4, base_target - 2)"
+      },
+      {
+        "if": "accuracy_7d >= 0.90 and consecutive_missed_days == 0",
+        "then": "target = min(18, base_target + 1)"
+      },
+      {
+        "if": "accuracy_7d < 0.75",
+        "then": "target = max(4, base_target - 1)"
+      },
+      {
+        "else": "target = base_target"
+      }
+    ]
+  },
+  "weeks": [
+    {
+      "week": 1,
+      "new_notes": 20,
+      "cumulative": {
+        "foundation": 10,
+        "relationship": 10,
+        "navigation_survival": 0,
+        "ministry": 0
+      }
+    },
+    {
+      "week": 2,
+      "new_notes": 18,
+      "cumulative": {
+        "foundation": 19,
+        "relationship": 19,
+        "navigation_survival": 0,
+        "ministry": 0
+      }
+    },
+    {
+      "week": 3,
+      "new_notes": 16,
+      "cumulative": {
+        "foundation": 29,
+        "relationship": 25,
+        "navigation_survival": 10,
+        "ministry": 0
+      }
+    },
+    {
+      "week": 4,
+      "new_notes": 16,
+      "cumulative": {
+        "foundation": 29,
+        "relationship": 44,
+        "navigation_survival": 10,
+        "ministry": 0
+      }
+    },
+    {
+      "week": 5,
+      "new_notes": 12,
+      "cumulative": {
+        "foundation": 29,
+        "relationship": 44,
+        "navigation_survival": 22,
+        "ministry": 0
+      }
+    },
+    {
+      "week": 6,
+      "new_notes": 12,
+      "cumulative": {
+        "foundation": 29,
+        "relationship": 44,
+        "navigation_survival": 34,
+        "ministry": 0
+      }
+    },
+    {
+      "week": 7,
+      "new_notes": 10,
+      "cumulative": {
+        "foundation": 29,
+        "relationship": 44,
+        "navigation_survival": 38,
+        "ministry": 6
+      }
+    },
+    {
+      "week": 8,
+      "new_notes": 10,
+      "cumulative": {
+        "foundation": 29,
+        "relationship": 44,
+        "navigation_survival": 38,
+        "ministry": 16
+      }
+    },
+    {
+      "week": 9,
+      "new_notes": 8,
+      "cumulative": {
+        "foundation": 29,
+        "relationship": 44,
+        "navigation_survival": 38,
+        "ministry": 24
+      }
+    },
+    {
+      "week": 10,
+      "new_notes": 8,
+      "cumulative": {
+        "foundation": 29,
+        "relationship": 44,
+        "navigation_survival": 38,
+        "ministry": 32
+      }
+    },
+    {
+      "week": 11,
+      "new_notes": 6,
+      "cumulative": {
+        "foundation": 29,
+        "relationship": 44,
+        "navigation_survival": 38,
+        "ministry": 35
+      }
+    },
+    {
+      "week": 12,
+      "new_notes": 6,
+      "cumulative": {
+        "foundation": 29,
+        "relationship": 44,
+        "navigation_survival": 38,
+        "ministry": 37
+      }
+    },
+    {
+      "week": 13,
+      "new_notes": 3,
+      "cumulative": {
+        "foundation": 29,
+        "relationship": 44,
+        "navigation_survival": 38,
+        "ministry": 37
+      }
+    },
+    {
+      "week": 14,
+      "new_notes": 3,
+      "cumulative": {
+        "foundation": 29,
+        "relationship": 44,
+        "navigation_survival": 38,
+        "ministry": 37
+      }
+    }
+  ]
+}
