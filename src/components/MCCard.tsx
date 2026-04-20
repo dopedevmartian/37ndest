@@ -106,10 +106,10 @@ export function MCCard({ item, choices, onOutcome, onContinue }: MCCardProps) {
   }
 
   return (
-    <div className="flex flex-col flex-1 px-6 pt-6 pb-8">
+    <div className="flex flex-col flex-1 px-6 pt-8 pb-8">
 
       {/* ── Zone 1: Japanese prompt ────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col justify-center">
+      <div className="flex flex-col items-center pb-6">
         <div className="text-center">
           {categoryLabel && (
             <span
@@ -129,7 +129,7 @@ export function MCCard({ item, choices, onOutcome, onContinue }: MCCardProps) {
       </div>
 
       {/* ── Zone 2: Choice buttons ─────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 mt-4">
+      <div className="flex flex-col gap-3">
         {choices.map((choice, index) => (
           <button
             key={index}

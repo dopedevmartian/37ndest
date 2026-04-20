@@ -471,6 +471,7 @@ export function ReviewView({ activeProfileId, onBack, onSessionComplete }: Revie
             return (
               <div className="flex-1 flex flex-col overflow-y-auto">
                 <MCCard
+                  key={currentItem.noteId}
                   item={currentItem}
                   choices={choices}
                   onOutcome={(outcome) => handleMCOutcome(currentItem, outcome)}
