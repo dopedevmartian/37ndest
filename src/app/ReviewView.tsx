@@ -7,7 +7,7 @@
 // Direction: recognition unconditionally in this phase.
 // Profile-based review-mode preference is deferred to a later spec.
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { tryGetCanonicalDeck } from "../features/deck-import/deckContent";
 import { createSessionEntry } from "../features/review/sessionEntry";
 import { selectSessionItems } from "../features/review/itemSelector";
@@ -25,6 +25,12 @@ import {
   captureProductionResult,
 } from "../features/review/productionFlow";
 import { ReviewCard } from "../components/ReviewCard";
+import { updateConfidence } from "../features/review/confidenceTracker";
+import {
+  attemptReinsertion,
+  createReinsertionState,
+  type ReinsertionState,
+} from "../features/review/sessionReinsertion";
 import type {
   ProductionOutcome,
   RecognitionOutcome,
@@ -111,6 +117,29 @@ export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
   const [productionInteraction, setProductionInteraction] =
     useState<ProductionInteraction | null>(null);
 
+  // Session-local reinsertion tracking. Reset on each new session.
+  // Stored in a ref — changes do not need to trigger re-renders.
+  const reinsertionStateRef = useRef<ReinsertionState>(createReinsertionState());
+
+  // True when the active session is a focused drill (practice-again).
+  // Prevents recursive practice-again offers after a focused drill completes.
+  const isFocusedDrillRef = useRef<boolean>(false);
+
+  // The set of card ids that must be seen for the session to complete.
+  // Fixed at session start from the initial items list.
+  // Reinsertion adds duplicates to items but does not add to this set.
+  const originalCardIdsRef = useRef<Set<string>>(
+    (() => {
+      const initial = buildInitialPhase();
+      if (initial.phase !== "active") return new Set<string>();
+      return new Set(initial.sessionState.items.map((i) => i.noteId));
+    })()
+  );
+
+  // Tracks which original card ids have been seen at least once this session.
+  // Session completes when this equals originalCardIdsRef in size.
+  const seenOriginalCardIdsRef = useRef<Set<string>>(new Set());
+
   // Initialize interaction state for the given item.
   function initInteractionForItem(item: SessionItem | null) {
     if (item && item.direction === "recognition") {
@@ -136,8 +165,39 @@ export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
     if (viewPhase.phase !== "active") return;
     const enginePrompt = createRecognitionPrompt(recognitionInteraction.item);
     const result = captureRecognitionResult(enginePrompt, outcome);
-    const nextState = advanceSession(viewPhase.sessionState, result);
-    if (nextState.completed) {
+    // Persist confidence update for correct/incorrect outcomes (skipped is neutral).
+    if (outcome !== "skipped" && activeProfileId) {
+      updateConfidence(
+        recognitionInteraction.item.noteId,
+        activeProfileId,
+        outcome
+      ).catch(() => {
+        // Confidence update failure must not crash the session.
+      });
+    }
+    // Attempt reinsertion on incorrect outcome before advancing the engine.
+    let currentSessionState = viewPhase.sessionState;
+    if (outcome === "incorrect") {
+      const { updatedSessionState, updatedReinsertionState } = attemptReinsertion(
+        currentSessionState,
+        reinsertionStateRef.current,
+        recognitionInteraction.item.noteId
+      );
+      currentSessionState = updatedSessionState;
+      reinsertionStateRef.current = updatedReinsertionState;
+    }
+    const nextState = advanceSession(currentSessionState, result);
+    // Mark this card as seen if it belongs to the original session set.
+    const cardId = recognitionInteraction.item.noteId;
+    if (originalCardIdsRef.current.has(cardId)) {
+      seenOriginalCardIdsRef.current.add(cardId);
+    }
+    // Session completes when every original card has been seen at least once.
+    // This is correct under reinsertion: reinserted cards are duplicates of
+    // originals and do not add new required cards to the completion set.
+    const isComplete =
+      seenOriginalCardIdsRef.current.size >= originalCardIdsRef.current.size;
+    if (isComplete) {
       setViewPhase({ phase: "complete", sessionState: nextState });
       setRecognitionInteraction(null);
       setProductionInteraction(null);
@@ -158,8 +218,37 @@ export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
     if (viewPhase.phase !== "active") return;
     const enginePrompt = createProductionPrompt(productionInteraction.item);
     const result = captureProductionResult(enginePrompt, outcome);
-    const nextState = advanceSession(viewPhase.sessionState, result);
-    if (nextState.completed) {
+    // Persist confidence update for correct/incorrect outcomes (skipped is neutral).
+    if (outcome !== "skipped" && activeProfileId) {
+      updateConfidence(
+        productionInteraction.item.noteId,
+        activeProfileId,
+        outcome
+      ).catch(() => {
+        // Confidence update failure must not crash the session.
+      });
+    }
+    // Attempt reinsertion on incorrect outcome before advancing the engine.
+    let currentSessionState = viewPhase.sessionState;
+    if (outcome === "incorrect") {
+      const { updatedSessionState, updatedReinsertionState } = attemptReinsertion(
+        currentSessionState,
+        reinsertionStateRef.current,
+        productionInteraction.item.noteId
+      );
+      currentSessionState = updatedSessionState;
+      reinsertionStateRef.current = updatedReinsertionState;
+    }
+    const nextState = advanceSession(currentSessionState, result);
+    // Mark this card as seen if it belongs to the original session set.
+    const cardId = productionInteraction.item.noteId;
+    if (originalCardIdsRef.current.has(cardId)) {
+      seenOriginalCardIdsRef.current.add(cardId);
+    }
+    // Session completes when every original card has been seen at least once.
+    const isComplete =
+      seenOriginalCardIdsRef.current.size >= originalCardIdsRef.current.size;
+    if (isComplete) {
       setViewPhase({ phase: "complete", sessionState: nextState });
       setRecognitionInteraction(null);
       setProductionInteraction(null);
@@ -171,9 +260,35 @@ export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
 
   function handleStartAnother() {
     const next = buildInitialPhase();
+    reinsertionStateRef.current = createReinsertionState();
+    isFocusedDrillRef.current = false;
+    originalCardIdsRef.current =
+      next.phase === "active"
+        ? new Set(next.sessionState.items.map((i) => i.noteId))
+        : new Set();
+    seenOriginalCardIdsRef.current = new Set();
     setViewPhase(next);
     if (next.phase === "active") {
       initInteractionForItem(getCurrentItem(next.sessionState));
+    }
+  }
+
+  // Launch a focused drill containing only the cards missed in the just-finished session.
+  // isFocusedDrillRef is set to true so the complete state after this drill
+  // does not offer practice-again again (no recursive offers).
+  function handlePracticeAgain(missedItems: SessionItem[]) {
+    if (missedItems.length === 0) return;
+    try {
+      const sessionState = createSessionState(missedItems);
+      reinsertionStateRef.current = createReinsertionState();
+      isFocusedDrillRef.current = true;
+      originalCardIdsRef.current = new Set(missedItems.map((i) => i.noteId));
+      seenOriginalCardIdsRef.current = new Set();
+      setViewPhase({ phase: "active", sessionState });
+      initInteractionForItem(getCurrentItem(sessionState));
+    } catch {
+      // If session creation fails for any reason, fall back to home.
+      onBack();
     }
   }
 
@@ -290,41 +405,77 @@ export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
       })()}
 
       {/* ── Complete state ──────────────────────────────────────────────── */}
-      {viewPhase.phase === "complete" && (
-        <div className="flex-1 flex flex-col items-center justify-center px-8 gap-6">
-          <p
-            className="font-source-serif text-xl text-center"
-            style={{ color: "var(--ink)" }}
-          >
-            Session complete.
-          </p>
-          <p
-            className="font-source-serif text-base text-center"
-            style={{ color: "var(--ink-muted)" }}
-          >
-            {viewPhase.sessionState.results.length} item
-            {viewPhase.sessionState.results.length !== 1 ? "s" : ""} reviewed
-          </p>
-          <button
-            onClick={handleStartAnother}
-            className="w-full max-w-xs py-4 font-inter font-medium text-base"
-            style={{
-              backgroundColor: "var(--ink)",
-              color: "var(--paper)",
-              borderRadius: "var(--radius)",
-            }}
-          >
-            Start another session
-          </button>
-          <button
-            onClick={onBack}
-            className="font-inter text-sm"
-            style={{ color: "var(--ink-muted)" }}
-          >
-            Return home
-          </button>
-        </div>
-      )}
+      {viewPhase.phase === "complete" && (() => {
+        const completedState = viewPhase.sessionState;
+        const reviewedCount = completedState.results.length;
+
+        // Collect missed items for practice-again offer.
+        // Only offered when: not already a focused drill, and ≥ 2 distinct cards missed.
+        const missedIds = reinsertionStateRef.current.missedCardIds;
+        const showPracticeAgain =
+          !isFocusedDrillRef.current && missedIds.size >= 2;
+
+        // Deduplicate: one SessionItem per missed card id (first occurrence in items).
+        const seenIds = new Set<string>();
+        const missedItems: SessionItem[] = [];
+        for (const item of completedState.items) {
+          if (missedIds.has(item.noteId) && !seenIds.has(item.noteId)) {
+            seenIds.add(item.noteId);
+            missedItems.push(item);
+          }
+        }
+
+        return (
+          <div className="flex-1 flex flex-col items-center justify-center px-8 gap-6">
+            <p
+              className="font-source-serif text-xl text-center"
+              style={{ color: "var(--ink)" }}
+            >
+              Session complete.
+            </p>
+            <p
+              className="font-source-serif text-base text-center"
+              style={{ color: "var(--ink-muted)" }}
+            >
+              {reviewedCount} item{reviewedCount !== 1 ? "s" : ""} reviewed
+            </p>
+
+            {/* Practice-again offer — only when ≥ 2 cards missed and not a focused drill */}
+            {showPracticeAgain && (
+              <button
+                onClick={() => handlePracticeAgain(missedItems)}
+                className="w-full max-w-xs py-4 font-inter font-medium text-base"
+                style={{
+                  backgroundColor: "var(--ink)",
+                  color: "var(--paper)",
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                Practice again — {missedItems.length} to revisit
+              </button>
+            )}
+
+            <button
+              onClick={handleStartAnother}
+              className="w-full max-w-xs py-4 font-inter font-medium text-base"
+              style={{
+                backgroundColor: showPracticeAgain ? "var(--paper-deep)" : "var(--ink)",
+                color: showPracticeAgain ? "var(--ink-muted)" : "var(--paper)",
+                borderRadius: "var(--radius)",
+              }}
+            >
+              Start another session
+            </button>
+            <button
+              onClick={onBack}
+              className="font-inter text-sm"
+              style={{ color: "var(--ink-muted)" }}
+            >
+              Return home
+            </button>
+          </div>
+        );
+      })()}
 
       {/* ── Error state ─────────────────────────────────────────────────── */}
       {viewPhase.phase === "error" && (
