@@ -212,14 +212,21 @@ export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
             <div className="flex items-center justify-between px-5 pt-3 pb-1">
               <button
                 onClick={onBack}
-                aria-label="Pause and return to home"
-                className="p-1 -ml-1 focus:outline-none"
+                aria-label="Exit review and return to home"
+                className="p-2 -ml-2 flex flex-col items-center focus:outline-none"
               >
                 <EnsoIcon />
+                <span
+                  className="font-inter uppercase mt-0.5"
+                  style={{ fontSize: "0.6rem", letterSpacing: "0.08em", color: "var(--ink-faint)" }}
+                >
+                  exit
+                </span>
               </button>
+              {/* Counter de-emphasized: --ink-faint at 0.625rem, secondary to the bar */}
               <span
-                className="font-inter text-xs"
-                style={{ color: "var(--ink-muted)" }}
+                className="font-inter"
+                style={{ fontSize: "0.625rem", color: "var(--ink-faint)" }}
               >
                 {position} / {total}
               </span>

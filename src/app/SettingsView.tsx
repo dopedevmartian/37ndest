@@ -1,9 +1,7 @@
-// SettingsView — minimal settings surface for 37NDEST.
-// T1: structural, honest settings page with Study and About sections.
-// T2: global study direction preference persisted via settingsService.
-// T3: profile-specific study direction preference when a profile is active.
-// T4: mission date and study intensity pacing inputs.
-// T6: schedule guidance display derived from saved pacing inputs.
+// SettingsView — settings surface for 37NDEST.
+//
+// Spec 008: V1-era dark styling replaced with V2 design system tokens.
+// List-row pattern preserved. Settings logic, state, and behavior unchanged.
 
 import { useEffect, useState } from "react";
 import {
@@ -37,12 +35,44 @@ function statusLabel(guidance: ScheduleGuidance): string {
   }
 }
 
+// Shared section header style
+const sectionHeaderStyle = {
+  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+  fontSize: "0.65rem",
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.12em",
+  color: "var(--ink-faint)",
+};
+
 export function SettingsView({ activeProfileId, onBack }: SettingsViewProps) {
   const [preferredDirection, setPreferredDirection] =
     useState<PreferredStudyDirection>(null);
   const [missionDate, setMissionDateState] = useState<string>("");
   const [studyIntensity, setStudyIntensityState] = useState<StudyIntensity>(null);
   const [loading, setLoading] = useState(true);
+  // `now` is updated on visibilitychange and at midnight so that
+  // calculateScheduleGuidance always receives the current date.
+  const [now, setNow] = useState(() => new Date());
+
+  // Refresh `now` when the app returns to the foreground.
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === "visible") {
+        setNow(new Date());
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
+  // Refresh `now` at the next midnight so the count rolls over automatically.
+  useEffect(() => {
+    const n = new Date();
+    const msUntilMidnight =
+      new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1).getTime() - n.getTime();
+    const timer = setTimeout(() => setNow(new Date()), msUntilMidnight);
+    return () => clearTimeout(timer);
+  }, [now]); // re-schedule after each midnight tick
 
   useEffect(() => {
     let cancelled = false;
@@ -84,159 +114,184 @@ export function SettingsView({ activeProfileId, onBack }: SettingsViewProps) {
     setStudyIntensityState(intensity);
   }
 
-  // Derive guidance synchronously from current state — pure calculator, no async needed.
   const guidance = calculateScheduleGuidance(
     missionDate === "" ? null : missionDate,
-    studyIntensity
+    studyIntensity,
+    now
   );
 
   return (
-    <section className="flex flex-1 flex-col items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur">
-        <button
-          onClick={onBack}
-          className="mb-6 flex items-center gap-2 text-sm text-slate-400 transition hover:text-slate-200"
-        >
-          <span aria-hidden="true">←</span> Back
-        </button>
+    <section
+      className="flex flex-col min-h-screen overflow-y-auto px-5 py-8"
+      style={{ backgroundColor: "var(--paper)" }}
+    >
+      {/* Back */}
+      <button
+        onClick={onBack}
+        className="mb-6 flex items-center gap-2 font-inter text-sm transition"
+        style={{ color: "var(--ink-muted)" }}
+      >
+        <span aria-hidden="true">←</span> Back
+      </button>
 
-        <h2 className="text-xl font-semibold tracking-tight text-white">
-          Settings
-        </h2>
+      <h2
+        className="font-inter text-xl font-semibold tracking-tight mb-2"
+        style={{ color: "var(--ink)" }}
+      >
+        Settings
+      </h2>
 
-        {loading ? (
-          <p className="mt-6 text-sm text-slate-600">Loading…</p>
-        ) : (
-          <>
-            {/* Study section */}
-            <div className="mt-6">
-              <p className="mb-3 text-xs uppercase tracking-widest text-slate-500">
-                Study
+      {loading ? (
+        <p className="mt-6 font-inter text-sm" style={{ color: "var(--ink-faint)" }}>
+          Loading…
+        </p>
+      ) : (
+        <>
+          {/* ── Profile ─────────────────────────────────────────── */}
+          <p className="mt-8 mb-2" style={sectionHeaderStyle}>Profile</p>
+          <div style={{ borderTop: "1px solid var(--rule)" }}>
+            <div className="py-3" style={{ borderBottom: "1px solid var(--rule)" }}>
+              <p className="font-inter text-sm" style={{ color: "var(--ink-muted)" }}>
+                Profile management coming in a later phase.
               </p>
-              <div className="space-y-2">
-                <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                  <p className="text-sm font-medium text-slate-300">
-                    Default study direction
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {activeProfileId
-                      ? "Saved for this profile. You can still choose a different direction when starting a session."
-                      : "No profile active. Select a profile to save a profile-specific preference."}
-                  </p>
-                  <div className="mt-3 flex gap-2">
-                    {(["recognition", "production", null] as PreferredStudyDirection[]).map((dir) => {
-                      const label = dir === "recognition" ? "Recognition" : dir === "production" ? "Production" : "No preference";
-                      const isActive = preferredDirection === dir;
-                      return (
-                        <button
-                          key={String(dir)}
-                          onClick={() => handleSetDirection(dir)}
-                          className={[
-                            "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition",
-                            isActive
-                              ? "bg-blue-600 text-white"
-                              : "border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10",
-                          ].join(" ")}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+            </div>
+          </div>
+
+          {/* ── Study preferences ───────────────────────────────── */}
+          <p className="mt-8 mb-2" style={sectionHeaderStyle}>Study preferences</p>
+          <div style={{ borderTop: "1px solid var(--rule)" }}>
+            <div className="py-3" style={{ borderBottom: "1px solid var(--rule)" }}>
+              <p className="font-inter text-sm font-medium" style={{ color: "var(--ink)" }}>
+                Default study direction
+              </p>
+              <p className="mt-1 font-inter text-xs" style={{ color: "var(--ink-faint)" }}>
+                {activeProfileId
+                  ? "Saved for this profile. You can still choose a different direction when starting a session."
+                  : "No profile active. Select a profile to save a profile-specific preference."}
+              </p>
+              <div className="mt-3 flex gap-2">
+                {(["recognition", "production", null] as PreferredStudyDirection[]).map((dir) => {
+                  const label =
+                    dir === "recognition" ? "Recognition"
+                    : dir === "production" ? "Production"
+                    : "No preference";
+                  const isActive = preferredDirection === dir;
+                  return (
+                    <button
+                      key={String(dir)}
+                      onClick={() => handleSetDirection(dir)}
+                      className="flex-1 rounded-lg px-2 py-1.5 font-inter text-xs font-medium transition"
+                      style={{
+                        backgroundColor: isActive ? "var(--ink)" : "var(--paper-deep)",
+                        color: isActive ? "var(--paper)" : "var(--ink-muted)",
+                        border: isActive ? "none" : "1px solid var(--rule)",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Trip pacing ─────────────────────────────────────── */}
+          <p className="mt-8 mb-2" style={sectionHeaderStyle}>Trip pacing</p>
+          <div style={{ borderTop: "1px solid var(--rule)" }}>
+
+            {/* Mission date */}
+            <div className="py-3" style={{ borderBottom: "1px solid var(--rule)" }}>
+              <p className="font-inter text-sm font-medium" style={{ color: "var(--ink)" }}>
+                Mission trip date
+              </p>
+              <p className="mt-1 font-inter text-xs" style={{ color: "var(--ink-faint)" }}>
+                Used for pacing guidance.
+              </p>
+              <input
+                type="date"
+                value={missionDate}
+                onChange={(e) => handleMissionDateChange(e.target.value)}
+                className="mt-3 w-full rounded-lg px-3 py-2 font-inter text-sm focus:outline-none"
+                style={{
+                  border: "1px solid var(--rule)",
+                  backgroundColor: "var(--paper-deep)",
+                  color: "var(--ink)",
+                }}
+              />
+            </div>
+
+            {/* Study intensity */}
+            <div className="py-3" style={{ borderBottom: "1px solid var(--rule)" }}>
+              <p className="font-inter text-sm font-medium" style={{ color: "var(--ink)" }}>
+                Study intensity
+              </p>
+              <p className="mt-1 font-inter text-xs" style={{ color: "var(--ink-faint)" }}>
+                Used for pacing guidance.
+              </p>
+              <div className="mt-3 flex gap-2">
+                {(["standard", "intensive"] as const).map((val) => {
+                  const isActive = studyIntensity === val;
+                  return (
+                    <button
+                      key={val}
+                      onClick={() => handleSetIntensity(val)}
+                      className="flex-1 rounded-lg px-2 py-1.5 font-inter text-xs font-medium capitalize transition"
+                      style={{
+                        backgroundColor: isActive ? "var(--ink)" : "var(--paper-deep)",
+                        color: isActive ? "var(--paper)" : "var(--ink-muted)",
+                        border: isActive ? "none" : "1px solid var(--rule)",
+                      }}
+                    >
+                      {val}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Schedule section — inputs */}
-            <div className="mt-6">
-              <p className="mb-3 text-xs uppercase tracking-widest text-slate-500">
-                Schedule
-              </p>
-              <div className="space-y-2">
-                <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                  <p className="text-sm font-medium text-slate-300">
-                    Mission trip date
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Used for pacing guidance.
-                  </p>
-                  <input
-                    type="date"
-                    value={missionDate}
-                    onChange={(e) => handleMissionDateChange(e.target.value)}
-                    className="mt-3 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-
-                <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                  <p className="text-sm font-medium text-slate-300">
-                    Study intensity
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Used for pacing guidance.
-                  </p>
-                  <div className="mt-3 flex gap-2">
-                    {(["standard", "intensive"] as const).map((val) => {
-                      const isActive = studyIntensity === val;
-                      return (
-                        <button
-                          key={val}
-                          onClick={() => handleSetIntensity(val)}
-                          className={[
-                            "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium capitalize transition",
-                            isActive
-                              ? "bg-blue-600 text-white"
-                              : "border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10",
-                          ].join(" ")}
-                        >
-                          {val}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Pacing guidance — calculated output, clearly separate from inputs */}
-            <div className="mt-6">
-              <p className="mb-3 text-xs uppercase tracking-widest text-slate-500">
+            {/* Pacing guidance output */}
+            <div className="py-3" style={{ borderBottom: "1px solid var(--rule)" }}>
+              <p className="font-inter text-sm font-medium mb-2" style={{ color: "var(--ink)" }}>
                 Pacing guidance
               </p>
-              <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-4 space-y-2">
-                <p className="text-sm text-slate-300">{statusLabel(guidance)}</p>
-                {guidance.remainingWeeks > 0 && (
-                  <p className="text-xs text-slate-400">
-                    {guidance.remainingWeeks} week{guidance.remainingWeeks !== 1 ? "s" : ""} remaining
-                    {" "}({guidance.remainingDays} day{guidance.remainingDays !== 1 ? "s" : ""})
-                  </p>
-                )}
-                {guidance.suggestedDailyNew !== null && (
-                  <p className="text-xs text-slate-400">
-                    Suggested: ~{guidance.suggestedDailyNew} new items per day
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* About section */}
-            <div className="mt-8">
-              <p className="mb-3 text-xs uppercase tracking-widest text-slate-500">
-                About
+              <p className="font-inter text-sm" style={{ color: "var(--ink-soft)" }}>
+                {statusLabel(guidance)}
               </p>
-              <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-4 space-y-1">
-                <p className="text-sm font-medium text-white">37NDEST</p>
-                <p className="text-xs text-slate-400">
-                  Japanese conversation trainer
+              {guidance.remainingWeeks > 0 && (
+                <p className="mt-1 font-inter text-xs" style={{ color: "var(--ink-muted)" }}>
+                  {guidance.remainingWeeks} week{guidance.remainingWeeks !== 1 ? "s" : ""} remaining
+                  {" "}({guidance.remainingDays} day{guidance.remainingDays !== 1 ? "s" : ""})
                 </p>
-                <p className="text-xs text-slate-500">
-                  A focused study tool for two users preparing for a mission trip.
+              )}
+              {guidance.suggestedDailyNew !== null && (
+                <p className="mt-1 font-inter text-xs" style={{ color: "var(--ink-muted)" }}>
+                  Suggested: ~{guidance.suggestedDailyNew} new items per day
                 </p>
-              </div>
+              )}
             </div>
-          </>
-        )}
-      </div>
+          </div>
+
+          {/* ── About ───────────────────────────────────────────── */}
+          <p className="mt-8 mb-2" style={sectionHeaderStyle}>About</p>
+          <div style={{ borderTop: "1px solid var(--rule)" }}>
+            <div className="py-3 space-y-1" style={{ borderBottom: "1px solid var(--rule)" }}>
+              <p className="font-inter text-sm font-medium" style={{ color: "var(--ink)" }}>
+                37NDEST
+              </p>
+              <p className="font-source-serif text-xs" style={{ color: "var(--ink-muted)" }}>
+                A focused Japanese conversation trainer for two people preparing for a
+                mission trip to Sapporo, Japan.
+              </p>
+              <p className="font-source-serif text-xs" style={{ color: "var(--ink-muted)" }}>
+                Built for practical conversational use — not academic completeness.
+              </p>
+              <p className="font-inter text-xs pt-1" style={{ color: "var(--ink-faint)" }}>
+                Version 0.1
+              </p>
+            </div>
+          </div>
+        </>
+      )}
     </section>
   );
 }

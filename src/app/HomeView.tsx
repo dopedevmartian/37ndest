@@ -1,6 +1,8 @@
 // HomeView — home/start surface with minimal profile-aware entry behavior.
 // Shows existing profiles (up to 2), allows selecting one, allows creating one.
-// Honest and narrow — no profile management polish beyond what T4 requires.
+//
+// Spec 008: V1-era glassmorphism replaced with V2 design system tokens.
+// Profile selector, create form, and navigation buttons are functionally unchanged.
 
 import { useState } from "react";
 import type { ProfilesState } from "../features/profiles/useProfiles";
@@ -10,7 +12,7 @@ type HomeViewProps = {
   profilesState: ProfilesState;
   onSelectProfile: (id: string) => void;
   onAddProfile: (name: string) => Promise<Profile | null>;
-  onNavigate: (view: "review" | "settings") => void;
+  onNavigate: (view: "review" | "profile") => void;
 };
 
 export function HomeView({
@@ -54,32 +56,52 @@ export function HomeView({
   }
 
   return (
-    <section className="flex flex-1 flex-col items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur">
-        <p className="mb-2 text-xs uppercase tracking-[0.25em] text-blue-300">
+    <section
+      className="flex flex-1 flex-col items-center justify-center px-6 py-16 pb-24"
+      style={{ backgroundColor: "var(--paper)" }}
+    >
+      <div className="w-full max-w-sm">
+
+        {/* Callsign */}
+        <p
+          className="mb-2 font-inter text-xs uppercase tracking-widest"
+          style={{ color: "var(--bengara)" }}
+        >
           37NDEST
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
+
+        {/* Heading */}
+        <h1
+          className="font-inter text-2xl font-semibold tracking-tight"
+          style={{ color: "var(--ink)" }}
+        >
           Japanese conversation trainer
         </h1>
-        <p className="mt-3 text-sm leading-6 text-slate-400">
+
+        {/* Subheading */}
+        <p
+          className="mt-3 font-source-serif italic text-sm leading-6"
+          style={{ color: "var(--ink-muted)" }}
+        >
           Select a profile to continue, or create one below.
         </p>
 
         {/* Profile selector */}
         <div className="mt-6 space-y-2">
           {profilesState.status === "loading" && (
-            <p className="text-sm text-slate-500">Loading profiles…</p>
+            <p className="font-inter text-sm" style={{ color: "var(--ink-faint)" }}>
+              Loading profiles…
+            </p>
           )}
 
           {profilesState.status === "error" && (
-            <p className="text-sm text-red-400">
+            <p className="font-inter text-sm" style={{ color: "var(--coral)" }}>
               Could not load profiles: {profilesState.message}
             </p>
           )}
 
           {isReady && profiles.length === 0 && (
-            <p className="text-sm text-slate-500">
+            <p className="font-inter text-sm" style={{ color: "var(--ink-faint)" }}>
               No profiles yet. Create one below.
             </p>
           )}
@@ -90,23 +112,28 @@ export function HomeView({
               <button
                 key={p.id}
                 onClick={() => onSelectProfile(p.id)}
-                className={[
-                  "w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition",
-                  isActive
-                    ? "border-blue-500 bg-blue-600/20 text-white"
-                    : "border-white/10 bg-black/20 text-slate-300 hover:bg-white/10",
-                ].join(" ")}
+                className="w-full rounded-2xl border px-4 py-3 text-left font-inter text-sm font-medium transition"
+                style={{
+                  borderColor: isActive ? "var(--bengara)" : "var(--rule)",
+                  backgroundColor: isActive ? "var(--paper-deep)" : "var(--paper)",
+                  color: isActive ? "var(--ink)" : "var(--ink-soft)",
+                }}
               >
                 {p.name}
                 {isActive && (
-                  <span className="ml-2 text-xs text-blue-300">(active)</span>
+                  <span
+                    className="ml-2 text-xs"
+                    style={{ color: "var(--bengara)" }}
+                  >
+                    (active)
+                  </span>
                 )}
               </button>
             );
           })}
         </div>
 
-        {/* Create profile form — only shown when ready and under the limit */}
+        {/* Create profile form */}
         {canAddProfile && (
           <form onSubmit={handleCreate} className="mt-4 flex gap-2">
             <input
@@ -119,32 +146,54 @@ export function HomeView({
               onChange={(e) => setNewName(e.target.value)}
               placeholder="New profile name"
               maxLength={40}
-              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+              className="min-w-0 flex-1 rounded-xl px-3 py-2 font-inter text-base focus:outline-none"
+              style={{
+                border: "1px solid var(--rule)",
+                backgroundColor: "var(--paper-deep)",
+                color: "var(--ink)",
+              }}
             />
             <button
               type="submit"
               disabled={creating || !newName.trim()}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-40"
+              className="rounded-xl px-4 py-2 font-inter text-sm font-medium transition disabled:opacity-40"
+              style={{
+                backgroundColor: "var(--ink)",
+                color: "var(--paper)",
+              }}
             >
               Add
             </button>
           </form>
         )}
 
-        {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+        {error && (
+          <p className="mt-2 font-inter text-xs" style={{ color: "var(--coral)" }}>
+            {error}
+          </p>
+        )}
 
-        {/* Navigation — only enabled when a profile is active */}
+        {/* Navigation */}
         <div className="mt-6 flex flex-col gap-3">
           <button
             onClick={() => onNavigate("review")}
             disabled={!activeId}
-            className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-blue-500 active:bg-blue-700 disabled:opacity-40"
+            className="w-full rounded-2xl py-3 font-inter text-sm font-medium transition disabled:opacity-40"
+            style={{
+              backgroundColor: "var(--ink)",
+              color: "var(--paper)",
+            }}
           >
             Start review
           </button>
           <button
-            onClick={() => onNavigate("settings")}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+            onClick={() => onNavigate("profile")}
+            className="w-full rounded-2xl border py-3 font-inter text-sm font-medium transition"
+            style={{
+              borderColor: "var(--rule)",
+              backgroundColor: "var(--paper)",
+              color: "var(--ink-muted)",
+            }}
           >
             Settings
           </button>

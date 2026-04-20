@@ -8,6 +8,11 @@
 // Pure rendering component — no session state, no engine calls.
 // Direction defaults to recognition unconditionally in Phase 5.
 // distractors field is ignored entirely in this phase.
+//
+// Spec 008 changes:
+// - Japanese hero text increased to 3.75rem with lineHeight 1.3
+// - Action buttons: "I knew it" / "Not yet"
+// - Zone 3: "Example" label above triple; "Word order" label on literal_breakdown
 
 import type { SessionItem } from "../types/review";
 
@@ -24,7 +29,6 @@ function getCategoryLabel(category: string | undefined): string | null {
   return CATEGORY_DISPLAY[category] ?? category;
 }
 
-
 export type ReviewCardProps = {
   item: SessionItem;
   revealed: boolean;
@@ -40,19 +44,26 @@ export function ReviewCard({ item, revealed, onReveal, onGotIt, onAgain }: Revie
   // Narrow all enriched/optional fields that may resolve as unknown due to the
   // CanonicalNote index signature. Only narrowed variables are passed to
   // getCategoryLabel() or rendered in JSX.
-  const category         = typeof note.category          === "string" ? note.category          : undefined;
-  const simpleExplanation= typeof note.simple_explanation=== "string" ? note.simple_explanation: undefined;
-  const exampleJapanese  = typeof note.example_japanese  === "string" ? note.example_japanese  : undefined;
-  const exampleRomaji    = typeof note.example_romaji    === "string" ? note.example_romaji    : undefined;
-  const exampleEnglish   = typeof note.example_english   === "string" ? note.example_english   : undefined;
-  const usageNote        = typeof note.usage_note        === "string" ? note.usage_note        : undefined;
-  const literalBreakdown = typeof note.literal_breakdown === "string" ? note.literal_breakdown : undefined;
+  const category          = typeof note.category           === "string" ? note.category           : undefined;
+  const simpleExplanation = typeof note.simple_explanation === "string" ? note.simple_explanation : undefined;
+  const exampleJapanese   = typeof note.example_japanese   === "string" ? note.example_japanese   : undefined;
+  const exampleRomaji     = typeof note.example_romaji     === "string" ? note.example_romaji     : undefined;
+  const exampleEnglish    = typeof note.example_english    === "string" ? note.example_english    : undefined;
+  const usageNote         = typeof note.usage_note         === "string" ? note.usage_note         : undefined;
+  const literalBreakdown  = typeof note.literal_breakdown  === "string" ? note.literal_breakdown  : undefined;
 
   const categoryLabel = getCategoryLabel(category);
 
   // Zone 3 presence check — example triple requires all three fields.
   const hasExampleTriple = Boolean(exampleJapanese) && Boolean(exampleRomaji) && Boolean(exampleEnglish);
   const hasZone3 = hasExampleTriple || Boolean(usageNote) || Boolean(literalBreakdown);
+
+  // Japanese hero text style — shared between Zone 1 recognition and Zone 2 production reveal.
+  const japaneseHeroStyle = {
+    fontSize: "3.75rem",
+    lineHeight: 1.3,
+    color: "var(--ink)",
+  };
 
   return (
     <div className="flex flex-col flex-1 px-6 pt-6 pb-8">
@@ -71,10 +82,7 @@ export function ReviewCard({ item, revealed, onReveal, onGotIt, onAgain }: Revie
                 {categoryLabel}
               </span>
             )}
-            <p
-              className="font-noto-serif-jp leading-tight"
-              style={{ fontSize: "3rem", color: "var(--ink)" }}
-            >
+            <p className="font-noto-serif-jp" style={japaneseHeroStyle}>
               {note.japanese}
             </p>
           </div>
@@ -118,7 +126,7 @@ export function ReviewCard({ item, revealed, onReveal, onGotIt, onAgain }: Revie
       <div
         style={{
           overflow: "hidden",
-          maxHeight: revealed ? "600px" : "0",
+          maxHeight: revealed ? "800px" : "0",
           opacity: revealed ? 1 : 0,
           transition: "max-height 250ms ease-in-out, opacity 250ms ease-in-out",
         }}
@@ -161,10 +169,7 @@ export function ReviewCard({ item, revealed, onReveal, onGotIt, onAgain }: Revie
         ) : (
           /* Production reveal: Japanese hero + romaji */
           <div className="text-center space-y-2">
-            <p
-              className="font-noto-serif-jp leading-tight"
-              style={{ fontSize: "3rem", color: "var(--ink)" }}
-            >
+            <p className="font-noto-serif-jp" style={japaneseHeroStyle}>
               {note.japanese}
             </p>
             <p
@@ -179,34 +184,42 @@ export function ReviewCard({ item, revealed, onReveal, onGotIt, onAgain }: Revie
         {/* ── Zone 3: Inline Support Content ───────────────────────────── */}
         {hasZone3 && (
           <div
-            className="mt-5 pt-4 space-y-3 text-sm"
+            className="mt-5 pt-4 space-y-4"
             style={{ borderTop: "1px solid var(--rule)" }}
           >
-            {/* Example triple — all three or none */}
+            {/* Example triple — labeled group, all three or none */}
             {hasExampleTriple && (
-              <div className="space-y-1">
+              <div>
                 <p
-                  className="font-noto-sans-jp text-sm"
-                  style={{ color: "var(--ink-soft)" }}
+                  className="font-inter uppercase mb-2"
+                  style={{ fontSize: "0.65rem", letterSpacing: "0.08em", color: "var(--ink-faint)" }}
                 >
-                  {exampleJapanese}
+                  Example
                 </p>
-                <p
-                  className="font-source-serif italic text-xs"
-                  style={{ color: "var(--ink-muted)" }}
-                >
-                  {exampleRomaji}
-                </p>
-                <p
-                  className="font-source-serif text-xs"
-                  style={{ color: "var(--ink-muted)" }}
-                >
-                  {exampleEnglish}
-                </p>
+                <div className="space-y-1">
+                  <p
+                    className="font-noto-sans-jp text-sm"
+                    style={{ color: "var(--ink-soft)" }}
+                  >
+                    {exampleJapanese}
+                  </p>
+                  <p
+                    className="font-source-serif italic text-xs"
+                    style={{ color: "var(--ink-muted)" }}
+                  >
+                    {exampleRomaji}
+                  </p>
+                  <p
+                    className="font-source-serif text-xs"
+                    style={{ color: "var(--ink-muted)" }}
+                  >
+                    {exampleEnglish}
+                  </p>
+                </div>
               </div>
             )}
 
-            {/* usage_note */}
+            {/* usage_note — no label needed, contextually clear */}
             {usageNote && (
               <p
                 className="font-source-serif italic text-xs"
@@ -216,12 +229,20 @@ export function ReviewCard({ item, revealed, onReveal, onGotIt, onAgain }: Revie
               </p>
             )}
 
-            {/* literal_breakdown */}
+            {/* literal_breakdown — "Word order" label prefix.
+                → characters in the stored value render as-is. */}
             {literalBreakdown && (
-              <p
-                className="font-inter text-xs"
-                style={{ color: "var(--ink-faint)" }}
-              >
+              <p className="font-inter" style={{ fontSize: "0.75rem", color: "var(--ink-faint)" }}>
+                <span
+                  style={{
+                    fontSize: "0.65rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    marginRight: "0.4em",
+                  }}
+                >
+                  Word order
+                </span>
                 {literalBreakdown}
               </p>
             )}
@@ -232,17 +253,19 @@ export function ReviewCard({ item, revealed, onReveal, onGotIt, onAgain }: Revie
       {/* ── Post-reveal actions ────────────────────────────────────────── */}
       {revealed && (
         <div className="mt-6 flex flex-col gap-3">
+          {/* "I knew it" → correct outcome */}
           <button
             onClick={onGotIt}
-            className="w-full py-4 rounded-2xl font-inter font-medium text-base transition-opacity active:opacity-80"
+            className="w-full py-4 font-inter font-medium text-base transition-opacity active:opacity-80"
             style={{
               backgroundColor: "var(--ink)",
               color: "var(--paper)",
               borderRadius: "var(--radius)",
             }}
           >
-            Got it
+            I knew it
           </button>
+          {/* "Not yet" → incorrect outcome */}
           <button
             onClick={onAgain}
             className="w-full py-4 font-inter font-medium text-base border transition-opacity active:opacity-80"
@@ -253,7 +276,7 @@ export function ReviewCard({ item, revealed, onReveal, onGotIt, onAgain }: Revie
               borderRadius: "var(--radius)",
             }}
           >
-            Again
+            Not yet
           </button>
         </div>
       )}
