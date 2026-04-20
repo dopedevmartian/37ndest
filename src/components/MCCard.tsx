@@ -45,8 +45,15 @@ export function MCCard({ item, choices, onOutcome, onContinue }: MCCardProps) {
   const [phase, setPhase] = useState<MCPhase>("choosing");
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
-  const category = typeof note.category === "string" ? note.category : undefined;
+  const category          = typeof note.category           === "string" ? note.category           : undefined;
+  const romaji            = typeof note.romaji             === "string" ? note.romaji             : undefined;
+  const simpleExplanation = typeof note.simple_explanation === "string" ? note.simple_explanation : undefined;
+  const exampleJapanese   = typeof note.example_japanese   === "string" ? note.example_japanese   : undefined;
+  const exampleRomaji     = typeof note.example_romaji     === "string" ? note.example_romaji     : undefined;
+  const exampleEnglish    = typeof note.example_english    === "string" ? note.example_english    : undefined;
+
   const categoryLabel = getCategoryLabel(category);
+  const hasExampleTriple = Boolean(exampleJapanese) && Boolean(exampleRomaji) && Boolean(exampleEnglish);
 
   function handleChoiceTap(index: number) {
     if (phase !== "choosing") return;
@@ -109,7 +116,7 @@ export function MCCard({ item, choices, onOutcome, onContinue }: MCCardProps) {
     <div className="flex flex-col flex-1 px-6 pt-8 pb-8">
 
       {/* ── Zone 1: Japanese prompt ────────────────────────────────────── */}
-      <div className="flex flex-col items-center pb-6">
+      <div className="flex flex-col items-center pb-4">
         <div className="text-center">
           {categoryLabel && (
             <span
@@ -125,8 +132,56 @@ export function MCCard({ item, choices, onOutcome, onContinue }: MCCardProps) {
           >
             {note.japanese}
           </p>
+          {/* Romaji — shown after selection only */}
+          {phase === "feedback" && romaji && (
+            <p
+              className="mt-2 font-source-serif italic text-base"
+              style={{ color: "var(--ink-muted)" }}
+            >
+              {romaji}
+            </p>
+          )}
         </div>
       </div>
+
+      {/* ── Post-answer learning reveal ────────────────────────────────── */}
+      {phase === "feedback" && (simpleExplanation || hasExampleTriple) && (
+        <div
+          className="mb-4 space-y-3"
+          style={{ borderTop: "1px solid var(--rule)", paddingTop: "0.75rem" }}
+        >
+          {simpleExplanation && (
+            <p
+              className="font-source-serif text-sm"
+              style={{ color: "var(--ink-muted)" }}
+            >
+              {simpleExplanation}
+            </p>
+          )}
+          {hasExampleTriple && (
+            <div className="space-y-0.5">
+              <p
+                className="font-noto-sans-jp text-sm"
+                style={{ color: "var(--ink-soft)" }}
+              >
+                {exampleJapanese}
+              </p>
+              <p
+                className="font-source-serif italic text-xs"
+                style={{ color: "var(--ink-muted)" }}
+              >
+                {exampleRomaji}
+              </p>
+              <p
+                className="font-source-serif text-xs"
+                style={{ color: "var(--ink-muted)" }}
+              >
+                {exampleEnglish}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Zone 2: Choice buttons ─────────────────────────────────────── */}
       <div className="flex flex-col gap-3">
