@@ -61,6 +61,73 @@ export interface ProfileSettings {
 }
 
 /**
+ * Per-card-per-user bucket state record.
+ * One record per profile per card — updated on each review interaction.
+ * Separate from ReviewProgress (the raw interaction log).
+ * Drives mastery display, recently-missed shelf, and trip-phase weighting.
+ *
+ * id is a composite key: "{profileId}:{cardId}"
+ *
+ * bucket values:
+ *   0 = Learning  (new or frequently missed)
+ *   1 = Familiar  (seen and mostly correct)
+ *   2 = Strong    (consistently correct)
+ *
+ * Bucket write logic is implemented in Phase 5.
+ * This store is created in Phase 3 so Phase 5 can write to it.
+ */
+export interface CardBucket {
+  /** Composite key: "{profileId}:{cardId}" — one record per profile per card. */
+  id: string;
+  /** The profile this bucket belongs to. */
+  profileId: string;
+  /** The canonical note id (MJD-NNN or slug). */
+  cardId: string;
+  /** Total times this card has been presented to this profile. */
+  seen_count: number;
+  /** Times the user answered correctly. */
+  correct_count: number;
+  /** Times the user answered incorrectly. */
+  incorrect_count: number;
+  /** Unix timestamp (ms) of the last time this card was presented. */
+  last_seen: number;
+  /** Mastery bucket: 0=Learning, 1=Familiar, 2=Strong. */
+  bucket: 0 | 1 | 2;
+}
+
+/**
+ * Per-card-per-profile confidence record.
+ * One record per profile per card — updated after each review outcome.
+ * Tracks a rolling confidence score and recent outcome history.
+ * Drives within-session reinsertion and end-of-session "practice again" logic.
+ *
+ * Distinct from CardBucket: ConfidenceRecord is immediate reinforcement memory
+ * (volatile, responsive). CardBucket is the broader mastery classification layer.
+ * The two systems must not be merged.
+ *
+ * id is a composite key: "{profileId}:{cardId}"
+ *
+ * Score rules:
+ *   correct   → min(score + 1, 10)
+ *   incorrect → max(score - 2, 0)
+ *   initial   → 5 (neutral, no record written until first outcome)
+ */
+export interface ConfidenceRecord {
+  /** Composite key: "{profileId}:{cardId}" — one record per profile per card. */
+  id: string;
+  /** The canonical note id (MJD-NNN or slug). */
+  cardId: string;
+  /** The profile this record belongs to. */
+  profileId: string;
+  /** Confidence score: integer 0–10. */
+  confidenceScore: number;
+  /** Last 10 outcomes, newest first. Only "correct" and "incorrect" are stored. */
+  recentOutcomes: ("correct" | "incorrect")[];
+  /** Unix timestamp (ms) of the last review outcome recorded. */
+  lastReviewedAt: number;
+}
+
+/**
  * Per-profile review progress record.
  * One record per item result, tied to a specific profile.
  * Canonical content is not stored here — only the note id (cardId) is referenced.

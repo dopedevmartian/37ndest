@@ -3,13 +3,15 @@
 // future review progress. Canonical deck content is NOT stored here.
 
 import Dexie, { type Table } from "dexie";
-import type { AppSettings, Profile, ProfileSettings, ReviewProgress } from "../types/db";
+import type { AppSettings, CardBucket, ConfidenceRecord, Profile, ProfileSettings, ReviewProgress } from "../types/db";
 
 class AppDatabase extends Dexie {
   profiles!: Table<Profile, string>;
   settings!: Table<AppSettings, string>;
   reviewProgress!: Table<ReviewProgress, string>;
   profileSettings!: Table<ProfileSettings, string>;
+  cardBuckets!: Table<CardBucket, string>;
+  cardConfidence!: Table<ConfidenceRecord, string>;
 
   constructor() {
     super("37ndest");
@@ -31,6 +33,22 @@ class AppDatabase extends Dexie {
     this.version(3).stores({
       // profileSettings — one row per profile, keyed by profileId
       profileSettings: "id",
+    });
+
+    this.version(4).stores({
+      // cardBuckets — per-card-per-user mastery state.
+      // id is composite key "{profileId}:{cardId}" — one record per profile per card.
+      // Indexed by profileId and cardId for efficient queries.
+      // Bucket write logic is implemented in Phase 5.
+      cardBuckets: "id, profileId, cardId",
+    });
+
+    this.version(5).stores({
+      // cardConfidence — per-card-per-profile confidence tracking.
+      // id is composite key "{profileId}:{cardId}" — one record per profile per card.
+      // Indexed by profileId and cardId for efficient queries.
+      // Drives within-session reinsertion and end-of-session "practice again" logic.
+      cardConfidence: "id, profileId, cardId",
     });
   }
 }
