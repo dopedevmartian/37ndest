@@ -18,8 +18,11 @@ export default defineConfig({
                 description: "A focused Japanese conversation trainer for two users preparing for a mission trip.",
                 start_url: "/37ndest/",
                 display: "standalone",
-                background_color: "#0b1020",
-                theme_color: "#0b1020",
+                // V2 visual-system metadata alignment (Phase 2).
+                // Manifest accepts a single value — light palette used.
+                // Dual light/dark theme-color is handled via meta tags in index.html.
+                background_color: "#f5efe4",
+                theme_color: "#f5efe4",
                 icons: [
                     {
                         src: "/icons/icon-192.png",

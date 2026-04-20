@@ -9,7 +9,8 @@ import type { CanonicalDeck } from "../../types/content";
 import { assertValidCanonicalDeck } from "./validateCanonicalDeck";
 
 // Build-time static import — Vite bundles this JSON directly from the repo.
-import rawDeck from "../../../data/decks/canonical/japanese_mission_deck_canonical_v1_fresh.json";
+// V2 Phase 3: updated to load the migrated V2 canonical deck.
+import rawDeck from "../../../data/decks/canonical/japanese_mission_deck_canonical_v2.json";
 
 /**
  * Load and return the canonical deck as trusted read-only content.

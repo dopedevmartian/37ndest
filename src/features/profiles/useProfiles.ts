@@ -62,23 +62,29 @@ export function useProfiles() {
   /**
    * Create a new profile with the given name and make it active.
    * Enforces the two-profile limit — returns null if already at limit.
+   * Returns null and logs on any storage error (e.g. IndexedDB unavailable).
    */
   const addProfile = useCallback(
     async (name: string): Promise<Profile | null> => {
       const current = stateRef.current;
       if (current.status !== "ready") return null;
       if (current.profiles.length >= 2) return null;
-      const profile = await createProfile(name);
-      await setActiveProfileId(profile.id);
-      setState((prev) => {
-        if (prev.status !== "ready") return prev;
-        return {
-          ...prev,
-          profiles: [...prev.profiles, profile],
-          activeProfileId: profile.id,
-        };
-      });
-      return profile;
+      try {
+        const profile = await createProfile(name);
+        await setActiveProfileId(profile.id);
+        setState((prev) => {
+          if (prev.status !== "ready") return prev;
+          return {
+            ...prev,
+            profiles: [...prev.profiles, profile],
+            activeProfileId: profile.id,
+          };
+        });
+        return profile;
+      } catch (err) {
+        console.error("[useProfiles] addProfile failed:", err);
+        return null;
+      }
     },
     [] // stateRef is stable — no dependency on state needed
   );
