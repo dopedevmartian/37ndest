@@ -7,10 +7,12 @@
 // Direction: recognition unconditionally in this phase.
 // Profile-based review-mode preference is deferred to a later spec.
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { tryGetCanonicalDeck } from "../features/deck-import/deckContent";
 import { createSessionEntry } from "../features/review/sessionEntry";
 import { selectSessionItems } from "../features/review/itemSelector";
+import { db } from "../db/db";
+import type { ConfidenceRecord } from "../types/db";
 import {
   createSessionState,
   getCurrentItem,
@@ -105,7 +107,9 @@ export function ReviewView({ activeProfileId, onBack, onSessionComplete }: Revie
   const deckNotesRef = useRef<readonly CanonicalNote[]>([]);
 
   // Initialize session immediately on mount if profile is available.
-  function buildInitialPhase(): ViewPhase {
+  function buildInitialPhase(
+    confidenceMap?: ReadonlyMap<string, ConfidenceRecord>
+  ): ViewPhase {
     if (!activeProfileId) {
       return { phase: "error", message: "Select a profile on the home screen before starting a session." };
     }
@@ -116,7 +120,7 @@ export function ReviewView({ activeProfileId, onBack, onSessionComplete }: Revie
     try {
       deckNotesRef.current = contentResult.deck.notes;
       const entry = createSessionEntry(activeProfileId, contentResult.deck, DIRECTION);
-      const items = selectSessionItems(entry, new Set()).slice(0, SESSION_SIZE_DEFAULT);
+      const items = selectSessionItems(entry, new Set(), confidenceMap).slice(0, SESSION_SIZE_DEFAULT);
       const sessionState = createSessionState(items);
       return { phase: "active", sessionState };
     } catch (err) {
@@ -158,6 +162,49 @@ export function ReviewView({ activeProfileId, onBack, onSessionComplete }: Revie
   // Tracks which original card ids have been seen at least once this session.
   // Session completes when this equals originalCardIdsRef in size.
   const seenOriginalCardIdsRef = useRef<Set<string>>(new Set());
+
+  // Pending MC outcome — stored until the user taps Continue.
+  const pendingMCOutcomeRef = useRef<{
+    item: SessionItem;
+    outcome: RecognitionOutcome;
+    sessionState: SessionState;
+  } | null>(null);
+
+  // Load confidence records async on mount and rebuild the session with
+  // confidence-aware ordering. The initial session starts immediately with
+  // legacy ordering; this effect upgrades it once data is available.
+  // Non-fatal: if confidence load fails, the session continues with legacy order.
+  useEffect(() => {
+    if (!activeProfileId) return;
+    let cancelled = false;
+    db.cardConfidence
+      .where("profileId")
+      .equals(activeProfileId)
+      .toArray()
+      .then((records) => {
+        if (cancelled) return;
+        const map = new Map<string, ConfidenceRecord>(
+          records.map((r) => [r.cardId, r])
+        );
+        const upgraded = buildInitialPhase(map);
+        setViewPhase(upgraded);
+        if (upgraded.phase === "active") {
+          reinsertionStateRef.current = createReinsertionState();
+          isFocusedDrillRef.current = false;
+          pendingMCOutcomeRef.current = null;
+          originalCardIdsRef.current = new Set(
+            upgraded.sessionState.items.map((i) => i.noteId)
+          );
+          seenOriginalCardIdsRef.current = new Set();
+          initInteractionForItem(getCurrentItem(upgraded.sessionState));
+        }
+      })
+      .catch(() => {
+        // Confidence load failure is non-fatal.
+      });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProfileId]);
 
   // Initialize interaction state for the given item.
   function initInteractionForItem(item: SessionItem | null) {
@@ -327,13 +374,6 @@ export function ReviewView({ activeProfileId, onBack, onSessionComplete }: Revie
       initInteractionForItem(getCurrentItem(nextState));
     }
   }
-
-  // Pending MC outcome — stored until the user taps Continue.
-  const pendingMCOutcomeRef = useRef<{
-    item: SessionItem;
-    outcome: RecognitionOutcome;
-    sessionState: SessionState;
-  } | null>(null);
 
   function handleMCOutcome(item: SessionItem, outcome: "correct" | "incorrect") {
     if (viewPhase.phase !== "active") return;
