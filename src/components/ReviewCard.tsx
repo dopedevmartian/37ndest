@@ -36,14 +36,23 @@ export type ReviewCardProps = {
 export function ReviewCard({ item, revealed, onReveal, onGotIt, onAgain }: ReviewCardProps) {
   const note = item.note;
   const isRecognition = item.direction === "recognition";
-  const categoryLabel = getCategoryLabel(note.category);
+
+  // Narrow all enriched/optional fields that may resolve as unknown due to the
+  // CanonicalNote index signature. Only narrowed variables are passed to
+  // getCategoryLabel() or rendered in JSX.
+  const category         = typeof note.category          === "string" ? note.category          : undefined;
+  const simpleExplanation= typeof note.simple_explanation=== "string" ? note.simple_explanation: undefined;
+  const exampleJapanese  = typeof note.example_japanese  === "string" ? note.example_japanese  : undefined;
+  const exampleRomaji    = typeof note.example_romaji    === "string" ? note.example_romaji    : undefined;
+  const exampleEnglish   = typeof note.example_english   === "string" ? note.example_english   : undefined;
+  const usageNote        = typeof note.usage_note        === "string" ? note.usage_note        : undefined;
+  const literalBreakdown = typeof note.literal_breakdown === "string" ? note.literal_breakdown : undefined;
+
+  const categoryLabel = getCategoryLabel(category);
 
   // Zone 3 presence check — example triple requires all three fields.
-  const hasExampleTriple =
-    Boolean(note.example_japanese) &&
-    Boolean(note.example_romaji) &&
-    Boolean(note.example_english);
-  const hasZone3 = hasExampleTriple || Boolean(note.usage_note) || Boolean(note.literal_breakdown);
+  const hasExampleTriple = Boolean(exampleJapanese) && Boolean(exampleRomaji) && Boolean(exampleEnglish);
+  const hasZone3 = hasExampleTriple || Boolean(usageNote) || Boolean(literalBreakdown);
 
   return (
     <div className="flex flex-col flex-1 px-6 pt-6 pb-8">
@@ -140,12 +149,12 @@ export function ReviewCard({ item, revealed, onReveal, onGotIt, onAgain }: Revie
             >
               {note.romaji}
             </p>
-            {note.simple_explanation && (
+            {simpleExplanation && (
               <p
                 className="font-source-serif text-base mt-3"
                 style={{ color: "var(--ink-muted)" }}
               >
-                {note.simple_explanation}
+                {simpleExplanation}
               </p>
             )}
           </div>
@@ -180,40 +189,40 @@ export function ReviewCard({ item, revealed, onReveal, onGotIt, onAgain }: Revie
                   className="font-noto-sans-jp text-sm"
                   style={{ color: "var(--ink-soft)" }}
                 >
-                  {note.example_japanese}
+                  {exampleJapanese}
                 </p>
                 <p
                   className="font-source-serif italic text-xs"
                   style={{ color: "var(--ink-muted)" }}
                 >
-                  {note.example_romaji}
+                  {exampleRomaji}
                 </p>
                 <p
                   className="font-source-serif text-xs"
                   style={{ color: "var(--ink-muted)" }}
                 >
-                  {note.example_english}
+                  {exampleEnglish}
                 </p>
               </div>
             )}
 
             {/* usage_note */}
-            {note.usage_note && (
+            {usageNote && (
               <p
                 className="font-source-serif italic text-xs"
                 style={{ color: "var(--ink-muted)" }}
               >
-                {note.usage_note}
+                {usageNote}
               </p>
             )}
 
             {/* literal_breakdown */}
-            {note.literal_breakdown && (
+            {literalBreakdown && (
               <p
                 className="font-inter text-xs"
                 style={{ color: "var(--ink-faint)" }}
               >
-                {note.literal_breakdown}
+                {literalBreakdown}
               </p>
             )}
           </div>
