@@ -35,14 +35,21 @@ function statusLabel(guidance: ScheduleGuidance): string {
   }
 }
 
-// Shared section header style
-const sectionHeaderStyle = {
-  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-  fontSize: "0.65rem",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.12em",
-  color: "var(--ink-faint)",
-};
+// Divider-style section header — renders a rule on each side of the label.
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 mt-8">
+      <div className="h-px flex-1" style={{ background: "var(--rule)" }} />
+      <div
+        className="text-[0.65rem] tracking-[0.18em] uppercase"
+        style={{ color: "var(--ink-faint)" }}
+      >
+        {label}
+      </div>
+      <div className="h-px flex-1" style={{ background: "var(--rule)" }} />
+    </div>
+  );
+}
 
 export function SettingsView({ activeProfileId, onBack }: SettingsViewProps) {
   const [preferredDirection, setPreferredDirection] =
@@ -148,8 +155,8 @@ export function SettingsView({ activeProfileId, onBack }: SettingsViewProps) {
       ) : (
         <>
           {/* ── Profile ─────────────────────────────────────────── */}
-          <p className="mt-8 mb-2" style={sectionHeaderStyle}>Profile</p>
-          <div style={{ borderTop: "1px solid var(--rule)" }}>
+          <SectionHeader label="Profile" />
+          <div className="mt-2" style={{ borderTop: "1px solid var(--rule)" }}>
             <div className="py-3" style={{ borderBottom: "1px solid var(--rule)" }}>
               <p className="font-inter text-sm" style={{ color: "var(--ink-muted)" }}>
                 Profile management coming in a later phase.
@@ -158,8 +165,8 @@ export function SettingsView({ activeProfileId, onBack }: SettingsViewProps) {
           </div>
 
           {/* ── Study preferences ───────────────────────────────── */}
-          <p className="mt-8 mb-2" style={sectionHeaderStyle}>Study preferences</p>
-          <div style={{ borderTop: "1px solid var(--rule)" }}>
+          <SectionHeader label="Study Preferences" />
+          <div className="mt-2" style={{ borderTop: "1px solid var(--rule)" }}>
             <div className="py-3" style={{ borderBottom: "1px solid var(--rule)" }}>
               <p className="font-inter text-sm font-medium" style={{ color: "var(--ink)" }}>
                 Default study direction
@@ -196,8 +203,8 @@ export function SettingsView({ activeProfileId, onBack }: SettingsViewProps) {
           </div>
 
           {/* ── Trip pacing ─────────────────────────────────────── */}
-          <p className="mt-8 mb-2" style={sectionHeaderStyle}>Trip pacing</p>
-          <div style={{ borderTop: "1px solid var(--rule)" }}>
+          <SectionHeader label="Trip Pacing" />
+          <div className="mt-2" style={{ borderTop: "1px solid var(--rule)" }}>
 
             {/* Mission date */}
             <div className="py-3" style={{ borderBottom: "1px solid var(--rule)" }}>
@@ -211,11 +218,13 @@ export function SettingsView({ activeProfileId, onBack }: SettingsViewProps) {
                 type="date"
                 value={missionDate}
                 onChange={(e) => handleMissionDateChange(e.target.value)}
-                className="mt-3 w-full rounded-lg px-3 py-2 font-inter text-sm focus:outline-none"
+                className="mt-3 w-full max-w-full rounded-lg px-3 py-2 font-inter text-sm focus:outline-none box-border"
                 style={{
                   border: "1px solid var(--rule)",
                   backgroundColor: "var(--paper-deep)",
                   color: "var(--ink)",
+                  width: "100%",
+                  boxSizing: "border-box",
                 }}
               />
             </div>
@@ -272,8 +281,8 @@ export function SettingsView({ activeProfileId, onBack }: SettingsViewProps) {
           </div>
 
           {/* ── About ───────────────────────────────────────────── */}
-          <p className="mt-8 mb-2" style={sectionHeaderStyle}>About</p>
-          <div style={{ borderTop: "1px solid var(--rule)" }}>
+          <SectionHeader label="About" />
+          <div className="mt-2" style={{ borderTop: "1px solid var(--rule)" }}>
             <div className="py-3 space-y-1" style={{ borderBottom: "1px solid var(--rule)" }}>
               <p className="font-inter text-sm font-medium" style={{ color: "var(--ink)" }}>
                 37NDEST
