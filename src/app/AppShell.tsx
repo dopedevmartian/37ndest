@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useProfiles } from "../features/profiles/useProfiles";
 import { HomeView, incrementDailyProgress } from "./HomeView";
 import { ReviewView } from "./ReviewView";
+import { ProgressView } from "./ProgressView";
 import { SettingsView } from "./SettingsView";
 
 type Surface = "today" | "review" | "progress" | "profile";
@@ -55,15 +56,7 @@ export function AppShell() {
       )}
 
       {activeSurface === "progress" && (
-        // Placeholder — Progress surface will be implemented in Phase 7.
-        <section className="flex flex-1 flex-col px-5 py-8 pb-24">
-          <h2 className="text-xl font-semibold tracking-tight text-white">
-            Progress
-          </h2>
-          <p className="mt-3 text-sm text-slate-400">
-            Coming in a later phase.
-          </p>
-        </section>
+        <ProgressView activeProfileId={activeProfileId} />
       )}
 
       {activeSurface === "profile" && (
