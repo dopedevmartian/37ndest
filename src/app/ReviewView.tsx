@@ -431,7 +431,7 @@ export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
         }
 
         return (
-          <div className="flex-1 flex flex-col items-center justify-center px-8 gap-6">
+          <div className="flex-1 flex flex-col items-center justify-center px-8 gap-4">
             <p
               className="font-source-serif text-xl text-center"
               style={{ color: "var(--ink)" }}
@@ -445,39 +445,51 @@ export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
               {reviewedCount} item{reviewedCount !== 1 ? "s" : ""} reviewed
             </p>
 
-            {/* Practice-again offer — only when ≥ 2 cards missed and not a focused drill */}
-            {showPracticeAgain && (
+            {/* Action group — consistent button hierarchy regardless of state */}
+            <div className="w-full max-w-xs flex flex-col gap-3 mt-2">
+              {/* Primary: practice-again when present, otherwise start another */}
+              {showPracticeAgain ? (
+                <button
+                  onClick={() => handlePracticeAgain(missedItems)}
+                  className="w-full py-4 font-inter font-medium text-base"
+                  style={{
+                    backgroundColor: "var(--ink)",
+                    color: "var(--paper)",
+                    borderRadius: "var(--radius)",
+                  }}
+                >
+                  Practice again — {missedItems.length} to revisit
+                </button>
+              ) : null}
+
+              {/* Secondary: start another session */}
               <button
-                onClick={() => handlePracticeAgain(missedItems)}
-                className="w-full max-w-xs py-4 font-inter font-medium text-base"
+                onClick={handleStartAnother}
+                className="w-full py-4 font-inter font-medium text-base"
                 style={{
-                  backgroundColor: "var(--ink)",
-                  color: "var(--paper)",
+                  backgroundColor: showPracticeAgain ? "transparent" : "var(--ink)",
+                  color: showPracticeAgain ? "var(--ink-muted)" : "var(--paper)",
+                  border: showPracticeAgain ? "1.5px solid var(--rule)" : "none",
                   borderRadius: "var(--radius)",
                 }}
               >
-                Practice again — {missedItems.length} to revisit
+                Start another session
               </button>
-            )}
 
-            <button
-              onClick={handleStartAnother}
-              className="w-full max-w-xs py-4 font-inter font-medium text-base"
-              style={{
-                backgroundColor: showPracticeAgain ? "var(--paper-deep)" : "var(--ink)",
-                color: showPracticeAgain ? "var(--ink-muted)" : "var(--paper)",
-                borderRadius: "var(--radius)",
-              }}
-            >
-              Start another session
-            </button>
-            <button
-              onClick={onBack}
-              className="font-inter text-sm"
-              style={{ color: "var(--ink-muted)" }}
-            >
-              Return home
-            </button>
+              {/* Tertiary: return home — always a real button, never a bare text link */}
+              <button
+                onClick={onBack}
+                className="w-full py-3 font-inter text-sm"
+                style={{
+                  backgroundColor: "transparent",
+                  color: "var(--ink-muted)",
+                  border: "1.5px solid var(--rule)",
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                Return home
+              </button>
+            </div>
           </div>
         );
       })()}
