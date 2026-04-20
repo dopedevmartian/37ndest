@@ -86,6 +86,11 @@ export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
   // Profile-based review-mode preference is deferred to a later spec.
   const DIRECTION = "recognition" as const;
 
+  // Maximum cards per normal session. Focused drills are not capped — they
+  // contain only the missed cards from the preceding session.
+  // Pacing/schedule integration is deferred to a later spec.
+  const SESSION_SIZE_DEFAULT = 10;
+
   // Initialize session immediately on mount if profile is available.
   function buildInitialPhase(): ViewPhase {
     if (!activeProfileId) {
@@ -97,7 +102,7 @@ export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
     }
     try {
       const entry = createSessionEntry(activeProfileId, contentResult.deck, DIRECTION);
-      const items = selectSessionItems(entry, new Set());
+      const items = selectSessionItems(entry, new Set()).slice(0, SESSION_SIZE_DEFAULT);
       const sessionState = createSessionState(items);
       return { phase: "active", sessionState };
     } catch (err) {
