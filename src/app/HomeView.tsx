@@ -4,15 +4,39 @@
 // Spec 008: V1-era glassmorphism replaced with V2 design system tokens.
 // Profile selector, create form, and navigation buttons are functionally unchanged.
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ProfilesState } from "../features/profiles/useProfiles";
 import type { Profile } from "../types/db";
+import { getMissionDate, getStudyIntensity } from "../features/settings/settingsService";
+import { calculateScheduleGuidance } from "../features/schedule/scheduleGuidance";
+
+// ---------------------------------------------------------------------------
+// Daily progress helpers — localStorage, keyed by YYYY-MM-DD + profileId
+// ---------------------------------------------------------------------------
+
+function todayKey(profileId: string): string {
+  const d = new Date();
+  const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `daily-progress:${profileId}:${ymd}`;
+}
+
+export function incrementDailyProgress(profileId: string): void {
+  const key = todayKey(profileId);
+  const current = parseInt(localStorage.getItem(key) ?? "0", 10);
+  localStorage.setItem(key, String(current + 1));
+}
+
+function readDailyProgress(profileId: string): number {
+  return parseInt(localStorage.getItem(todayKey(profileId)) ?? "0", 10);
+}
 
 type HomeViewProps = {
   profilesState: ProfilesState;
   onSelectProfile: (id: string) => void;
   onAddProfile: (name: string) => Promise<Profile | null>;
   onNavigate: (view: "review" | "profile") => void;
+  /** Incremented by AppShell each time a review session completes. */
+  sessionCompletedCount: number;
 };
 
 export function HomeView({
@@ -20,6 +44,7 @@ export function HomeView({
   onSelectProfile,
   onAddProfile,
   onNavigate,
+  sessionCompletedCount,
 }: HomeViewProps) {
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -29,6 +54,33 @@ export function HomeView({
   const profiles = isReady ? profilesState.profiles : [];
   const activeId = isReady ? profilesState.activeProfileId : null;
   const canAddProfile = isReady && profiles.length < 2;
+
+  // Daily progress state — refreshes when a session completes.
+  const [dailyTarget, setDailyTarget] = useState<number | null>(null);
+  const [dailyDone, setDailyDone] = useState<number>(0);
+
+  useEffect(() => {
+    if (!activeId) {
+      setDailyTarget(null);
+      setDailyDone(0);
+      return;
+    }
+    let cancelled = false;
+    async function load() {
+      const [missionDate, intensity] = await Promise.all([
+        getMissionDate(),
+        getStudyIntensity(),
+      ]);
+      if (cancelled) return;
+      const guidance = calculateScheduleGuidance(missionDate, intensity);
+      setDailyTarget(guidance.suggestedDailyNew);
+      setDailyDone(readDailyProgress(activeId!));
+    }
+    load();
+    return () => { cancelled = true; };
+  // Re-run when active profile changes or a session completes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, sessionCompletedCount]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -198,6 +250,24 @@ export function HomeView({
             Settings
           </button>
         </div>
+
+        {/* Daily progress — shown when a profile is active and a target is set */}
+        {activeId && dailyTarget !== null && (
+          <p
+            className="mt-4 font-inter text-xs text-center"
+            style={{ color: "var(--ink-faint)" }}
+          >
+            {dailyDone} of {dailyTarget} cards today
+          </p>
+        )}
+        {activeId && dailyTarget === null && (
+          <p
+            className="mt-4 font-inter text-xs text-center"
+            style={{ color: "var(--ink-faint)" }}
+          >
+            Set a mission date in Settings to see your daily target.
+          </p>
+        )}
       </div>
     </section>
   );

@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { useProfiles } from "../features/profiles/useProfiles";
-import { HomeView } from "./HomeView";
+import { HomeView, incrementDailyProgress } from "./HomeView";
 import { ReviewView } from "./ReviewView";
 import { SettingsView } from "./SettingsView";
 
@@ -20,6 +20,16 @@ export function AppShell() {
   const activeProfileId =
     state.status === "ready" ? state.activeProfileId : null;
 
+  // Incremented each time a review session completes — triggers HomeView refresh.
+  const [sessionCompletedCount, setSessionCompletedCount] = useState(0);
+
+  function handleSessionComplete() {
+    if (activeProfileId) {
+      incrementDailyProgress(activeProfileId);
+    }
+    setSessionCompletedCount((n) => n + 1);
+  }
+
   const showBottomNav = BOTTOM_NAV_SURFACES.includes(activeSurface);
 
   return (
@@ -32,6 +42,7 @@ export function AppShell() {
           onSelectProfile={selectProfile}
           onAddProfile={addProfile}
           onNavigate={(v: "review" | "profile") => setActiveSurface(v)}
+          sessionCompletedCount={sessionCompletedCount}
         />
       )}
 
@@ -39,6 +50,7 @@ export function AppShell() {
         <ReviewView
           activeProfileId={activeProfileId}
           onBack={() => setActiveSurface("today")}
+          onSessionComplete={handleSessionComplete}
         />
       )}
 

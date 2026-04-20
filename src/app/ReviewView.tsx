@@ -41,6 +41,8 @@ import type {
 type ReviewViewProps = {
   activeProfileId: string | null;
   onBack: () => void;
+  /** Called when a review session (normal or focused drill) reaches completion. */
+  onSessionComplete?: () => void;
 };
 
 // Minimal ViewPhase — select-direction removed.
@@ -81,7 +83,7 @@ function EnsoIcon() {
   );
 }
 
-export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
+export function ReviewView({ activeProfileId, onBack, onSessionComplete }: ReviewViewProps) {
   // Phase 5: recognition direction unconditionally.
   // Profile-based review-mode preference is deferred to a later spec.
   const DIRECTION = "recognition" as const;
@@ -206,6 +208,9 @@ export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
       setViewPhase({ phase: "complete", sessionState: nextState });
       setRecognitionInteraction(null);
       setProductionInteraction(null);
+      if (!isFocusedDrillRef.current) {
+        onSessionComplete?.();
+      }
     } else {
       setViewPhase({ phase: "active", sessionState: nextState });
       initInteractionForItem(getCurrentItem(nextState));
@@ -257,6 +262,9 @@ export function ReviewView({ activeProfileId, onBack }: ReviewViewProps) {
       setViewPhase({ phase: "complete", sessionState: nextState });
       setRecognitionInteraction(null);
       setProductionInteraction(null);
+      if (!isFocusedDrillRef.current) {
+        onSessionComplete?.();
+      }
     } else {
       setViewPhase({ phase: "active", sessionState: nextState });
       initInteractionForItem(getCurrentItem(nextState));
