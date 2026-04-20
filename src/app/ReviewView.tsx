@@ -25,18 +25,21 @@ import {
   captureProductionResult,
 } from "../features/review/productionFlow";
 import { ReviewCard } from "../components/ReviewCard";
+import { MCCard } from "../components/MCCard";
 import { updateConfidence } from "../features/review/confidenceTracker";
 import {
   attemptReinsertion,
   createReinsertionState,
   type ReinsertionState,
 } from "../features/review/sessionReinsertion";
+import { buildMCChoices } from "../features/review/mcChoices";
 import type {
   ProductionOutcome,
   RecognitionOutcome,
   SessionItem,
   SessionState,
 } from "../types/review";
+import type { CanonicalNote } from "../types/content";
 
 type ReviewViewProps = {
   activeProfileId: string | null;
@@ -88,10 +91,18 @@ export function ReviewView({ activeProfileId, onBack, onSessionComplete }: Revie
   // Profile-based review-mode preference is deferred to a later spec.
   const DIRECTION = "recognition" as const;
 
+  // Review interaction mode. "reveal" = self-assessed; "mc" = system-evaluated.
+  // Temporary constant — will be replaced by profile preference lookup in a later spec.
+  const REVIEW_MODE: "reveal" | "mc" = "mc";
+
   // Maximum cards per normal session. Focused drills are not capped — they
   // contain only the missed cards from the preceding session.
   // Pacing/schedule integration is deferred to a later spec.
   const SESSION_SIZE_DEFAULT = 10;
+
+  // All deck notes — needed for MC distractor generation.
+  // Populated once on mount and reused across cards.
+  const deckNotesRef = useRef<readonly CanonicalNote[]>([]);
 
   // Initialize session immediately on mount if profile is available.
   function buildInitialPhase(): ViewPhase {
@@ -103,6 +114,7 @@ export function ReviewView({ activeProfileId, onBack, onSessionComplete }: Revie
       return { phase: "error", message: `Could not load study content: ${contentResult.error}` };
     }
     try {
+      deckNotesRef.current = contentResult.deck.notes;
       const entry = createSessionEntry(activeProfileId, contentResult.deck, DIRECTION);
       const items = selectSessionItems(entry, new Set()).slice(0, SESSION_SIZE_DEFAULT);
       const sessionState = createSessionState(items);
@@ -271,10 +283,80 @@ export function ReviewView({ activeProfileId, onBack, onSessionComplete }: Revie
     }
   }
 
+  // MC mode handlers — used when REVIEW_MODE === "mc".
+  // onOutcome fires immediately on choice tap; onContinue advances the session.
+  // Both route through the same downstream logic as reveal mode so reinforcement,
+  // reinsertion, and completion are completely unaware of which mode was used.
+
+  // Shared completion logic extracted to avoid duplication between reveal and MC paths.
+  function resolveOutcome(
+    item: SessionItem,
+    outcome: RecognitionOutcome,
+    currentSessionState: SessionState
+  ) {
+    const enginePrompt = createRecognitionPrompt(item);
+    const result = captureRecognitionResult(enginePrompt, outcome);
+    if (outcome !== "skipped" && activeProfileId) {
+      updateConfidence(item.noteId, activeProfileId, outcome).catch(() => {});
+    }
+    let sessionState = currentSessionState;
+    if (outcome === "incorrect") {
+      const { updatedSessionState, updatedReinsertionState } = attemptReinsertion(
+        sessionState,
+        reinsertionStateRef.current,
+        item.noteId
+      );
+      sessionState = updatedSessionState;
+      reinsertionStateRef.current = updatedReinsertionState;
+    }
+    const nextState = advanceSession(sessionState, result);
+    if (originalCardIdsRef.current.has(item.noteId)) {
+      seenOriginalCardIdsRef.current.add(item.noteId);
+    }
+    const isComplete =
+      seenOriginalCardIdsRef.current.size >= originalCardIdsRef.current.size;
+    if (isComplete) {
+      setViewPhase({ phase: "complete", sessionState: nextState });
+      setRecognitionInteraction(null);
+      setProductionInteraction(null);
+      if (!isFocusedDrillRef.current) {
+        onSessionComplete?.();
+      }
+    } else {
+      setViewPhase({ phase: "active", sessionState: nextState });
+      initInteractionForItem(getCurrentItem(nextState));
+    }
+  }
+
+  // Pending MC outcome — stored until the user taps Continue.
+  const pendingMCOutcomeRef = useRef<{
+    item: SessionItem;
+    outcome: RecognitionOutcome;
+    sessionState: SessionState;
+  } | null>(null);
+
+  function handleMCOutcome(item: SessionItem, outcome: "correct" | "incorrect") {
+    if (viewPhase.phase !== "active") return;
+    // Store the outcome — do NOT advance yet. Wait for Continue tap.
+    pendingMCOutcomeRef.current = {
+      item,
+      outcome,
+      sessionState: viewPhase.sessionState,
+    };
+  }
+
+  function handleMCContinue() {
+    const pending = pendingMCOutcomeRef.current;
+    if (!pending) return;
+    pendingMCOutcomeRef.current = null;
+    resolveOutcome(pending.item, pending.outcome, pending.sessionState);
+  }
+
   function handleStartAnother() {
     const next = buildInitialPhase();
     reinsertionStateRef.current = createReinsertionState();
     isFocusedDrillRef.current = false;
+    pendingMCOutcomeRef.current = null;
     originalCardIdsRef.current =
       next.phase === "active"
         ? new Set(next.sessionState.items.map((i) => i.noteId))
@@ -295,6 +377,7 @@ export function ReviewView({ activeProfileId, onBack, onSessionComplete }: Revie
       const sessionState = createSessionState(missedItems);
       reinsertionStateRef.current = createReinsertionState();
       isFocusedDrillRef.current = true;
+      pendingMCOutcomeRef.current = null;
       originalCardIdsRef.current = new Set(missedItems.map((i) => i.noteId));
       seenOriginalCardIdsRef.current = new Set();
       setViewPhase({ phase: "active", sessionState });
@@ -380,6 +463,24 @@ export function ReviewView({ activeProfileId, onBack, onSessionComplete }: Revie
 
         const isRecognition = currentItem.direction === "recognition" && recognitionInteraction !== null;
         const isProduction  = currentItem.direction === "production"  && productionInteraction  !== null;
+
+        // MC mode: attempt to build choices; fall back to reveal if null.
+        if (REVIEW_MODE === "mc" && currentItem.direction === "recognition") {
+          const choices = buildMCChoices(currentItem, deckNotesRef.current, state.currentIndex);
+          if (choices !== null) {
+            return (
+              <div className="flex-1 flex flex-col overflow-y-auto">
+                <MCCard
+                  item={currentItem}
+                  choices={choices}
+                  onOutcome={(outcome) => handleMCOutcome(currentItem, outcome)}
+                  onContinue={handleMCContinue}
+                />
+              </div>
+            );
+          }
+          // Fall through to reveal mode if choices could not be built.
+        }
 
         const revealed =
           (isRecognition && recognitionInteraction!.revealed) ||
